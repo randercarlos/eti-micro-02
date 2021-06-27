@@ -1,0 +1,82 @@
+version: "3.7"
+
+services:
+  eti-micro-02-app:
+    image: laravel-app
+    build:
+      args:
+        user: eti-micro-02
+        uid: 1000
+      context: .
+      dockerfile: Dockerfile
+    container_name: eti-micro-02-app
+    restart: unless-stopped
+    depends_on:
+      - eti-micro-02-server
+      - eti-micro-02-db
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+    networks:
+      - eti-micro-02-network
+
+  eti-micro-02-server:
+    image: nginx:alpine
+    container_name: eti-micro-02-server
+    restart: unless-stopped
+    ports:
+      - 8001:80
+    volumes:
+      - .:/var/www
+      - ./docker/nginx:/etc/nginx/conf.d
+    networks:
+      - eti-micro-02-network
+
+  eti-micro-02-db:
+    image: mysql:5.7
+    container_name: eti-micro-02-db
+    restart: unless-stopped
+    volumes:
+      - ./.docker/mysql:/var/lib/mysql
+    ports:
+      - 3307:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - eti-micro-02-network
+
+  eti-micro-02-redis:
+    image: redis:6.0
+    container_name: eti-micro-02-redis
+    restart: unless-stopped
+    ports:
+      - 6379:6379
+    networks:
+      - eti-micro-02-network
+
+  eti-micro-02-queue:
+    image: laravel-app
+    build:
+        args:
+            user: eti-micro-02
+            uid: 1000
+        context: .
+        dockerfile: Dockerfile
+    container_name: eti-micro-02-queue
+    restart: unless-stopped
+    depends_on:
+      - eti-micro-02-app
+      - eti-micro-02-redis
+    working_dir: /var/www
+    volumes:
+        - .:/var/www
+    networks:
+      - eti-micro-02-network
+    command: php artisan queue:work
+
+networks:
+  eti-micro-02-network:
+    driver: bridge
